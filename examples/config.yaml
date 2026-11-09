@@ -1,0 +1,11 @@
+# Runtime configuration for AttackSurfaceX (all keys optional).
+
+profile: safe            # safe | balanced | deep
+timeout: 10.0            # per-request seconds
+rate: 5.0                # requests per second (safe profile)
+concurrency: 10          # max parallel requests
+output_format: markdown  # json | markdown | html | sarif
+
+# Optional session cookies for authenticated scanning of YOUR OWN apps:
+# cookies:
+#   session: "..."

@@ -1,0 +1,14 @@
+# Scope file — AttackSurfaceX never scans anything outside this list.
+# Copy to scope.yaml and adapt to YOUR infrastructure.
+
+hosts:
+  - forum.absba.cc
+
+# Allow wide port ranges (> max_ports). Keep false unless you know why.
+allow_wide_port_scan: false
+max_ports: 1000
+
+# Allow inert-canary active checks (injection/XSS indicators).
+# These are non-destructive, but they do send probe strings — enable
+# only for targets you own, with the balanced or deep profile.
+allow_active_checks: true
