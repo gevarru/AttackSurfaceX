@@ -26,26 +26,26 @@ RISKY_SERVICES = {
 
 
 async def _probe_port(host: str, port: int, timeout: float, rl: RateLimiter) -> tuple[int, str] | None:
-    await rl.acquire()
-    try:
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
-    except (OSError, asyncio.TimeoutError):
-        return None
-    banner = ""
-    try:
-        writer.write(b"\r\n")
-        await writer.drain()
-        data = await asyncio.wait_for(reader.read(128), timeout=2.0)
-        banner = data.decode(errors="replace").strip()[:80]
-    except (OSError, asyncio.TimeoutError):
-        pass
-    finally:
-        writer.close()
+    async with rl.hold():
         try:
-            await writer.wait_closed()
-        except OSError:
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
+        except (OSError, asyncio.TimeoutError):
+            return None
+        banner = ""
+        try:
+            writer.write(b"\r\n")
+            await writer.drain()
+            data = await asyncio.wait_for(reader.read(128), timeout=2.0)
+            banner = data.decode(errors="replace").strip()[:80]
+        except (OSError, asyncio.TimeoutError):
             pass
-    return port, banner
+        finally:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except OSError:
+                pass
+        return port, banner
 
 
 async def scan_ports(

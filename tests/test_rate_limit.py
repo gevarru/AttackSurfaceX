@@ -18,7 +18,7 @@ def test_invalid_params():
 async def test_rate_limit_throttles():
     rl = RateLimiter(rate=20, concurrency=20)
     start = time.monotonic()
-    # burst of 20 consumes the bucket; the next 20 need ~1s
+    # burst of 20 drains the bucket; the next 20 must cost ~1 second
     for _ in range(40):
         await rl.acquire()
     elapsed = time.monotonic() - start
@@ -33,11 +33,11 @@ async def test_concurrency_bounded():
 
     async def worker():
         nonlocal active, peak
-        await rl.acquire()
-        active += 1
-        peak = max(peak, active)
-        await asyncio.sleep(0.02)
-        active -= 1
+        async with rl.hold():
+            active += 1
+            peak = max(peak, active)
+            await asyncio.sleep(0.02)
+            active -= 1
 
     await asyncio.gather(*(worker() for _ in range(10)))
     assert peak <= 2
