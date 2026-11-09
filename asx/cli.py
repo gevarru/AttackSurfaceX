@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -98,6 +99,8 @@ async def _run_scan(
                 result.add(f)
         except RuleError as exc:
             err_console.print(f"[yellow]rules skipped: {exc}[/yellow]")
+        except httpx.HTTPError as exc:
+            err_console.print(f"[yellow]rules evaluation skipped (network): {exc}[/yellow]")
 
         plugin_paths = [BUNDLED_PLUGINS_DIR]
         if plugins_dir:
@@ -113,8 +116,11 @@ async def _run_scan(
                     err_console.print(f"[yellow]plugin {plugin.name} failed: {exc}[/yellow]")
 
     console.print("[cyan]tls:[/cyan] certificate & protocol audit")
-    for f in await asyncio.to_thread(tls_mod.scan_tls, host, 443):
-        result.add(f)
+    try:
+        for f in await asyncio.to_thread(tls_mod.scan_tls, host, 443):
+            result.add(f)
+    except OSError as exc:
+        err_console.print(f"[yellow]tls audit failed: {exc}[/yellow]")
 
     if do_ports:
         console.print("[cyan]ports:[/cyan] TCP connect scan (top ports)")
@@ -203,9 +209,10 @@ def plugins_list(
     table.add_column("Version")
     table.add_column("Description")
     table.add_column("Source")
-    for directory, label in [(BUNDLED_PLUGINS_DIR, "bundled"), (Path(plugins_dir), "extra") if plugins_dir else None]:
-        if directory is None:
-            continue
+    dirs = [(BUNDLED_PLUGINS_DIR, "bundled")]
+    if plugins_dir:
+        dirs.append((Path(plugins_dir), "extra"))
+    for directory, label in dirs:
         for p in load_plugins_dir(directory):
             table.add_row(p.name, p.version, p.description, label)
     console.print(table)
