@@ -1,5 +1,10 @@
 # AttackSurfaceX (ASX)
 
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Status](https://img.shields.io/badge/status-MVP-orange)
+[![GitHub stars](https://img.shields.io/github/stars/gevarru/AttackSurfaceX?style=social)](https://github.com/gevarru/AttackSurfaceX/stargazers)
+
 Safe, **non-destructive** attack-surface scanner for websites and servers you own or are explicitly authorized to test.
 CLI-first, plugin-based, with JSON / Markdown / interactive-HTML / SARIF reports. MIT licensed.
 
