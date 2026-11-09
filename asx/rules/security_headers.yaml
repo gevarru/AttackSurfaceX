@@ -9,7 +9,7 @@ rules:
     match:
       type: header_absent
       header: strict-transport-security
-    remediation: Add `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
+    remediation: "Add `Strict-Transport-Security: max-age=31536000; includeSubDomains`."
 
   - id: missing-csp
     title: Missing Content-Security-Policy header
@@ -19,7 +19,7 @@ rules:
     match:
       type: header_absent
       header: content-security-policy
-    remediation: Start with a Report-Only policy, then enforce.
+    remediation: "Start with a Report-Only policy, then enforce."
 
   - id: server-version-disclosure
     title: Server header discloses a version
@@ -30,4 +30,4 @@ rules:
       type: header_regex
       header: server
       pattern: "/[0-9]+\\.[0-9]+"
-    remediation: Hide version banners (e.g. ServerTokens Prod).
+    remediation: "Hide version banners (e.g. ServerTokens Prod)."
