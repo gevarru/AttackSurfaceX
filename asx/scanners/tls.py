@@ -11,23 +11,32 @@ from datetime import datetime, timezone
 from ..core.models import Confidence, Finding, Severity
 
 
-def _handshake(host: str, port: int, ctx: ssl.SSLContext, timeout: float = 8.0):
+def _probe(host: str, port: int, ctx: ssl.SSLContext, timeout: float = 8.0):
+    """Return (version, cipher, peercert) for one handshake, or None.
+
+    Values are extracted while the socket is open; the socket is always
+    closed before returning.
+    """
     try:
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            with ctx.wrap_socket(sock, server_hostname=host) as ssock:
-                return ssock
+        raw = socket.create_connection((host, port), timeout=timeout)
+        ssock = ctx.wrap_socket(raw, server_hostname=host)
     except (OSError, ssl.SSLError):
         return None
+    try:
+        return ssock.version(), ssock.cipher(), ssock.getpeercert()
+    except (OSError, ssl.SSLError):
+        return None
+    finally:
+        ssock.close()
 
 
 def scan_tls(host: str, port: int = 443) -> list[Finding]:
     findings: list[Finding] = []
     target = f"{host}:{port}"
 
-    # Certificate + negotiated protocol on default context
     ctx = ssl.create_default_context()
-    ssock = _handshake(host, port, ctx)
-    if ssock is None:
+    probed = _probe(host, port, ctx)
+    if probed is None:
         findings.append(Finding(
             title="TLS handshake failed on default settings",
             severity=Severity.MEDIUM,
@@ -40,12 +49,9 @@ def scan_tls(host: str, port: int = 443) -> list[Finding]:
         ))
         return findings
 
-    negotiated = ssock.version()
-    cipher = ssock.cipher()
-    cert = ssock.getpeercert()
-    ssock.close()
+    negotiated, cipher, cert = probed
 
-    not_after = cert.get("notAfter")
+    not_after = cert.get("notAfter") if cert else None
     if not_after:
         exp = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
         days = (exp - datetime.now(timezone.utc)).days
@@ -79,7 +85,7 @@ def scan_tls(host: str, port: int = 443) -> list[Finding]:
             dep.maximum_version = proto
         except (ssl.SSLError, ValueError):
             continue
-        if _handshake(host, port, dep) is not None:
+        if _probe(host, port, dep) is not None:
             findings.append(Finding(
                 title=f"Deprecated protocol accepted: {name}",
                 severity=Severity.MEDIUM,
