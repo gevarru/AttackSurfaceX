@@ -17,11 +17,19 @@ def _probe(host: str, port: int, ctx: ssl.SSLContext, timeout: float = 8.0):
     Values are extracted while the socket is open; the socket is always
     closed before returning.
     """
+    raw = None
     try:
         raw = socket.create_connection((host, port), timeout=timeout)
         ssock = ctx.wrap_socket(raw, server_hostname=host)
+        raw = None  # ownership transferred to ssock
     except (OSError, ssl.SSLError):
         return None
+    finally:
+        if raw is not None:
+            try:
+                raw.close()
+            except OSError:
+                pass
     try:
         return ssock.version(), ssock.cipher(), ssock.getpeercert()
     except (OSError, ssl.SSLError):
