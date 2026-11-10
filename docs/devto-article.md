@@ -40,8 +40,15 @@ The first real run was against a major fintech. Every port "closed", TLS handsha
 **Lesson 2: Modern SPAs return HTTP 200 for everything.**
 Exposed-path scanning (`/.git/HEAD`, `/.env`, `/swagger.json`) hits a wall: single-page apps serve the index HTML with a 200 for *any* path. Naive checking produced dozens of "exposed .git" hits that were all the same 12 KB of HTML. The discriminator is **content variance** — real endpoints differ in size and type from the catch-all shell. The same host that shows 200 for `/backup.zip` will 401 or 404 for the real thing once you follow the variance.
 
-**Lesson 3: The clean exit is a feature.**
-While recording the demo GIF, asciinema exposed a bug the unit tests missed: after writing the report, the CLI **hangs** instead of exiting. Root cause: unclosed resources (async client / pending tasks) keeping the event loop alive. The scan was fine; the process wasn't. If you pipe this into CI or a shell script, a scanner that won't exit *is* a bug. Fixed by treating "process exits 0 promptly" as a first-class acceptance test.
+**Lesson 3: Failed handshakes leak sockets — the edge that filters you also exhausts you.**
+Same geo-block scenario, second bug — and this one was in *my* code, not theirs. The TLS probe used to look like this:
+
+```python
+raw = socket.create_connection((host, port), timeout=timeout)
+ssock = ctx.wrap_socket(raw, server_hostname=host)
+```
+
+When `wrap_socket` fails mid-handshake — precisely what a silently-filtering edge does — the exception path returned early and the raw socket was never closed. One leaked fd per failed probe: harmless in a five-target scan, a slow exhaustion in a wide recon run. The fix is ownership discipline: clear the raw reference once the TLS socket takes over, and close it in `finally` if it never did. (Found by reading the code paths the geo-block run exercised; fixed in commit `d8ccc5f`.)
 
 ## The verdict after the first recon runs
 
