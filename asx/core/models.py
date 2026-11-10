@@ -72,8 +72,39 @@ class ScanResult:
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    duplicates_suppressed: int = 0
+
+    @staticmethod
+    def _title_tokens(title: str) -> set[str]:
+        import re
+        t = re.sub(r"\([^)]*\)", " ", title.lower())  # drop parenthetical noise like "(plugin)"
+        for ch in "_/[]:":
+            t = t.replace(ch, " ")
+        return {tok for tok in t.split() if len(tok) > 2}
+
+    @classmethod
+    def _is_duplicate(cls, new: "Finding", existing: "Finding") -> bool:
+        # Same target + same weakness class, and titles that share most of
+        # their significant tokens (e.g. module vs plugin reporting the same
+        # missing header with different wording).
+        if new.target != existing.target:
+            return False
+        if (new.cwe or "").upper() != (existing.cwe or "").upper():
+            return False
+        if not new.cwe:
+            return False
+        a = cls._title_tokens(new.title)
+        b = cls._title_tokens(existing.title)
+        if not a or not b:
+            return False
+        jaccard = len(a & b) / len(a | b)
+        return jaccard >= 0.6
 
     def add(self, finding: Finding) -> None:
+        for existing in self.findings:
+            if self._is_duplicate(finding, existing):
+                self.duplicates_suppressed += 1
+                return
         self.findings.append(finding)
 
     def finish(self) -> None:
@@ -95,6 +126,7 @@ class ScanResult:
         return {
             "tool": "AttackSurfaceX",
             "version": __import__("asx").__version__,
+            "duplicates_suppressed": self.duplicates_suppressed,
             "target": self.target,
             "profile": self.profile,
             "started_at": self.started_at,
