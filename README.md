@@ -58,6 +58,12 @@ asx rules validate --rules asx/rules/security_headers.yaml
 asx report --input results.json --format html --output report.html
 ```
 
+## Use as an AI agent skill
+
+ASX ships with a portable skill at [`skills/asx-security-scan/SKILL.md`](skills/asx-security-scan/SKILL.md) — a single `SKILL.md` (YAML frontmatter + instructions) that teaches any compatible agent how to run ASX safely: authorization gates, the `safe` profile, output interpretation, and the real-world lessons baked in (SPA catch-alls, geo-filtering vs TLS failure, dedup metadata).
+
+Works with **Kimi Agent**, **Kimi Claw**, **Kimi Code**, **Claude Code**, and **Codex CLI** — same file, every agent. Invoke it with your agent's skill/command picker, or let the agent auto-load it when the task matches.
+
 ## Architecture
 
 ```
