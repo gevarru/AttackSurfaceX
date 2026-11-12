@@ -74,13 +74,28 @@ class ScanResult:
     metadata: dict[str, Any] = field(default_factory=dict)
     duplicates_suppressed: int = 0
 
-    @staticmethod
-    def _title_tokens(title: str) -> set[str]:
+    # Common header acronyms -> their canonical header name, so that e.g.
+    # "Missing HSTS header" and "Missing Strict-Transport-Security header"
+    # deduplicate to the same finding.
+    _HEADER_ALIASES = {
+        "hsts": "strict-transport-security",
+        "xfo": "x-frame-options",
+        "csp": "content-security-policy",
+        "xcto": "x-content-type-options",
+    }
+
+    @classmethod
+    def _title_tokens(cls, title: str) -> set[str]:
         import re
         t = re.sub(r"\([^)]*\)", " ", title.lower())  # drop parenthetical noise like "(plugin)"
         for ch in "_/[]:":
             t = t.replace(ch, " ")
-        return {tok for tok in t.split() if len(tok) > 2}
+        toks = set()
+        for tok in t.split():
+            if len(tok) <= 2:
+                continue
+            toks.add(cls._HEADER_ALIASES.get(tok, tok))
+        return toks
 
     @classmethod
     def _is_duplicate(cls, new: "Finding", existing: "Finding") -> bool:
